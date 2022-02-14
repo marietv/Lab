@@ -1,0 +1,131 @@
+// OLED-skjermen
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 32
+
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+
+// Definerer variabler
+const int trigger = 7;
+const int echo = 8;
+const int btn = 11;
+const int temp_pin = A3;
+const int voltage_pin = A2;
+int OLED_state = 1;
+
+
+// Spenningen over fotoresistoren
+float readVoltage(int voltage_pin) {
+  float readValue = analogRead(voltage_pin);
+  float voltage = (readValue * 5) / 1023;
+  return voltage;
+}
+float voltage = 0;
+
+// Temperaturen målt av kondensatoren
+float readTemp(int temp_pin) {
+  float readValue = analogRead(temp_pin);
+  float voltage = (readValue * 5) / 1023;
+  float celsius = (voltage - 0.5) * 100;
+  return celsius;
+}
+float celsius = 0;
+
+
+
+void setup() {
+  // Start av OLED
+  if(!display.begin(SSD1306_SWITCHAPVCC, 0x3C)) {
+  Serial.println(F("SSD1306 allocation failed"));
+  for(;;);
+  }
+  
+  delay(2000);
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(WHITE);
+  display.setCursor(0, 10);
+
+  // Avstandsmåler
+  Serial.begin(115200);
+  pinMode(trigger, OUTPUT);
+  pinMode(echo, INPUT);
+}
+
+
+float distance(int echo, int trigger) {
+  // Skrur trigger lav for å være sikker på at
+  // høypulsen er "ren"
+  digitalWrite(trigger, LOW);
+  delayMicroseconds(2);
+
+  // Skrur på triggerpin i 10µs, deretter av igjen
+  digitalWrite(trigger, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigger, LOW);
+
+  // Leser av echopinne, og returnerer lydbølgens reisetid
+  // i mikrosekunder
+  long duration = pulseIn(echo, HIGH);
+
+  // Utregning av distanse. 0.0343 er lydens hastighet i cm/µs.
+  // Deles på to da lyden skal både frem og tilbake igjen
+  float distance = duration * 0.0343 / 2;
+
+  return distance;
+}
+
+void loop() {
+  // Setter opp trykknappen
+  if (digitalRead(btn)) {
+    while (digitalRead(btn));
+    OLED_state++;
+    if (OLED_state ==  4) {
+      OLED_state = 1;
+    }
+  }
+  // Generelle serial monitor avlesninger
+  Serial.print("OLED_state er ");
+  Serial.println(OLED_state);
+
+  // Switchcase funksjoner
+  switch (OLED_state) {
+    case 1:
+      Serial.print("Er i case 1 ");
+      Serial.println(readTemp(temp_pin));
+      display.setCursor(0, 10);
+      display.print(readTemp(temp_pin));
+      display.print(" C");
+      display.display();
+      delay(500);
+      display.clearDisplay();
+      display.setCursor(0, 10);
+      break;
+
+    case 2:
+      Serial.print("Er i case 2 ");
+      Serial.println(readVoltage(voltage_pin));
+      display.setCursor(0, 10);
+      display.print(readVoltage(voltage_pin));
+      display.print(" V");
+      display.display();
+      delay(500);
+      display.clearDisplay();
+      display.setCursor(0, 10);
+      break;
+    case 3:
+      Serial.print("Er i case 3 ");
+      Serial.println(distance(echo, trigger));
+      display.setCursor(0, 10);
+      display.print(distance(echo, trigger));
+      display.print(" ");
+      display.display();
+      delay(500);
+      display.clearDisplay();
+      display.setCursor(0, 10);
+      break;
+  }
+}
